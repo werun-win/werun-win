@@ -1,0 +1,49 @@
+name: Windows RDP with Bore Tunnel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rdp:
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Download Bore Client
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
+          Expand-Archive -Path "bore.zip" -DestinationPath "."
+
+      - name: Enable RDP and Create User
+        run: |
+          # Enable RDP
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          netsh advfirewall firewall add rule name="RDP" dir=in protocol=tcp localport=3389 action=allow
+          
+          # Create user from Secrets
+          net user "${{ secrets.RDP_USERNAME }}" "${{ secrets.RDP_PASSWORD }}" /add
+          net localgroup administrators "${{ secrets.RDP_USERNAME }}" /add
+          
+          # Start RDP service
+          Start-Service TermService -ErrorAction SilentlyContinue
+          
+          # Verify RDP is listening
+          Write-Host "Verifying RDP is listening on port 3389..."
+          netstat -an | findstr ":3389"
+
+      - name: Start Bore Tunnel
+        run: |
+          Write-Host ""
+          Write-Host "========================================="
+          Write-Host "✅ WINDOWS RDP TUNNEL IS READY!"
+          Write-Host "========================================="
+          Write-Host "🔗 Username: ${{ secrets.RDP_USERNAME }}"
+          Write-Host "🔑 Password: [Stored in GitHub Secret]"
+          Write-Host ""
+          Write-Host "📡 Look for: listening at bore.pub:XXXXX"
+          Write-Host "⚠️  Session runs for up to 6 hours"
+          Write-Host "========================================="
+          Write-Host ""
+          
+          .\bore.exe local 3389 --to bore.pub
