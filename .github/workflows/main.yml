@@ -46,4 +46,12 @@ jobs:
           Write-Host "========================================="
           Write-Host ""
           
+          # Start Bore in the foreground AND keep it alive
           .\bore.exe local 3389 --to bore.pub
+          
+          # This loop runs if Bore exits (keeps job alive)
+          while ($true) { 
+              Write-Host "Bore exited, restarting..."
+              Start-Sleep -Seconds 5
+              .\bore.exe local 3389 --to bore.pub
+          }
