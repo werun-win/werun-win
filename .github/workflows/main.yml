@@ -1,4 +1,4 @@
-name: Windows RDP with Bore Tunnel
+name: Windows RDP with Bore Tunnel (bore.sh)
 
 on:
   workflow_dispatch:
@@ -41,17 +41,18 @@ jobs:
           Write-Host "🔗 Username: ${{ secrets.RDP_USERNAME }}"
           Write-Host "🔑 Password: [Stored in GitHub Secret]"
           Write-Host ""
-          Write-Host "📡 Look for: listening at bore.pub:XXXXX"
+          Write-Host "📡 Using server: bore.sh"
+          Write-Host "📡 Look for: listening at bore.sh:XXXXX"
           Write-Host "⚠️  Session runs for up to 6 hours"
           Write-Host "========================================="
           Write-Host ""
           
-          # Start Bore in the foreground AND keep it alive
-          .\bore.exe local 3389 --to bore.pub
+          # Start Bore with alternative server
+          .\bore.exe local 3389 --to bore.sh
           
-          # This loop runs if Bore exits (keeps job alive)
+          # Keep alive loop
           while ($true) { 
               Write-Host "Bore exited, restarting..."
               Start-Sleep -Seconds 5
-              .\bore.exe local 3389 --to bore.pub
+              .\bore.exe local 3389 --to bore.sh
           }
