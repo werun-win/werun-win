@@ -1,4 +1,4 @@
-name: Windows RDP with Bore Tunnel (bore.sh)
+name: Windows RDP with Auto-Generated Credentials
 
 on:
   workflow_dispatch:
@@ -9,6 +9,27 @@ jobs:
     timeout-minutes: 360
 
     steps:
+      - name: Generate Random Credentials
+        run: |
+          # Generate random username (8 characters)
+          $username = -join ((65..90) + (97..122) | Get-Random -Count 8 | ForEach-Object { [char]$_ })
+          
+          # Generate random password (12 characters with symbols)
+          $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%'
+          $password = -join (1..12 | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
+          
+          # Save to environment variables for later steps
+          echo "RDP_USERNAME=$username" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "RDP_PASSWORD=$password" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          
+          Write-Host ""
+          Write-Host "========================================="
+          Write-Host "🔑 AUTO-GENERATED CREDENTIALS"
+          Write-Host "========================================="
+          Write-Host "👤 Username: $username"
+          Write-Host "🔒 Password: $password"
+          Write-Host "========================================="
+
       - name: Download Bore Client
         run: |
           Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
@@ -21,9 +42,9 @@ jobs:
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           netsh advfirewall firewall add rule name="RDP" dir=in protocol=tcp localport=3389 action=allow
           
-          # Create user from Secrets
-          net user "${{ secrets.RDP_USERNAME }}" "${{ secrets.RDP_PASSWORD }}" /add
-          net localgroup administrators "${{ secrets.RDP_USERNAME }}" /add
+          # Create user with auto-generated credentials
+          net user "${{ env.RDP_USERNAME }}" "${{ env.RDP_PASSWORD }}" /add
+          net localgroup administrators "${{ env.RDP_USERNAME }}" /add
           
           # Start RDP service
           Start-Service TermService -ErrorAction SilentlyContinue
@@ -38,21 +59,19 @@ jobs:
           Write-Host "========================================="
           Write-Host "✅ WINDOWS RDP TUNNEL IS READY!"
           Write-Host "========================================="
-          Write-Host "🔗 Username: ${{ secrets.RDP_USERNAME }}"
-          Write-Host "🔑 Password: [Stored in GitHub Secret]"
+          Write-Host "👤 Username: ${{ env.RDP_USERNAME }}"
+          Write-Host "🔒 Password: ${{ env.RDP_PASSWORD }}"
           Write-Host ""
-          Write-Host "📡 Using server: bore.sh"
-          Write-Host "📡 Look for: listening at bore.sh:XXXXX"
+          Write-Host "📡 Server: bore.pub"
+          Write-Host "📡 Look for: listening at bore.pub:XXXXX"
           Write-Host "⚠️  Session runs for up to 6 hours"
           Write-Host "========================================="
           Write-Host ""
           
-          # Start Bore with alternative server
-          .\bore.exe local 3389 --to bore.sh
+          .\bore.exe local 3389 --to bore.pub
           
-          # Keep alive loop
           while ($true) { 
               Write-Host "Bore exited, restarting..."
               Start-Sleep -Seconds 5
-              .\bore.exe local 3389 --to bore.sh
+              .\bore.exe local 3389 --to bore.pub
           }
